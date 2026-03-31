@@ -75,8 +75,6 @@ LauncherOptions options;
 
 void printVersionInfo();
 
-void loadGameOptions();
-
 template <const char** names, class>
 class SmartStub;
 template <const char** names, size_t... I>
@@ -225,6 +223,8 @@ int main(int argc, char* argv[]) {
     }
     Log::info("Launcher", "Game version: %s", MinecraftVersion::getString().c_str());
 
+    GameOptionsFile gameOptionsFile;
+
 #ifdef __APPLE__
     if(MinecraftVersion::isAtLeast(1, 26, 10, 0)) {
         std::string appdir = PathHelper::getAppDir();
@@ -235,6 +235,13 @@ int main(int argc, char* argv[]) {
             elg_lib = strdup(libEGL.data());
             setenv("ANGLE_DEFAULT_PLATFORM", "vulkan", true);
             setenv("VK_ICD_FILENAMES", MoltenVK_icd.data(), true);
+            // Vibrant Visuals not fully supported
+            auto oldOption = gameOptionsFile.graphicsMode.get();
+            if(oldOption != 0 && oldOption != 1) {
+                Log::warn("Launcher", "Vibrant Visuals via MoltenVK are not supported yet and causing rendering issues, disabling this graphics mode!");
+                gameOptionsFile.graphicsMode.set(1);
+                gameOptionsFile.save();
+            }
         } else {
             Log::error("Launcher", "Failed to find one of '%s' and '%s'", libEGL.data(), MoltenVK_icd.data());
             Log::error("Launcher", "Expect seeing a black screen, you have been warned");
@@ -242,7 +249,6 @@ int main(int argc, char* argv[]) {
     }
 #endif
 
-    loadGameOptions();
 #if defined(__i386__) || defined(__x86_64__)
     {
         CpuId cpuid;
@@ -633,6 +639,21 @@ Hardware	: Qualcomm Technologies, Inc MSM8998
         }
     }
 #endif
+    // Vibrant Visuals Crash Nvidia
+    // Issue: https://github.com/minecraft-linux/mcpelauncher-manifest/issues/1584
+    if(MinecraftVersion::isAtLeast(1, 21, 130, 0)) {
+        auto _glGetString = (const char*(*)(int)) windowManager->getProcAddrFunc()("glGetString");
+        if(_glGetString) {
+            auto renderer = _glGetString(0x1F01); // GL_RENDERER
+            if(renderer != nullptr && strstr(renderer, "NVIDIA") != nullptr) {
+                if(gameOptionsFile.volumetricFogQuality.get() != 0) {
+                    Log::warn("Launcher", "Vibrant Visuals volumetric Fog via NVIDIA drivers are not supported causing crashs when entering worlds / server, disabling this graphics mode!");
+                }
+                gameOptionsFile.volumetricFogQuality.set(0);
+                gameOptionsFile.save();
+            }
+        }
+    }
 
     Log::info("Launcher", "Executing main thread");
     ThreadMover::executeMainThread();
@@ -662,8 +683,7 @@ void printVersionInfo() {
     printf("MSA daemon path: %s\n", XboxLiveHelper::findMsa().c_str());
 }
 
-void loadGameOptions() {
-    properties::property_list properties(':');
+GameOptionsFile::GameOptionsFile() : properties(':'), graphicsMode(properties, "graphics_mode", 2), volumetricFogQuality(properties, "volumetric_fog_quality", 0) {
     properties::property<int> leftKey(properties, "keyboard_type_0_key.left", 'A');
     properties::property<int> downKey(properties, "keyboard_type_0_key.back", 'S');
     properties::property<int> rightKey(properties, "keyboard_type_0_key.right", 'D');
@@ -692,4 +712,9 @@ void loadGameOptions() {
     GameOptions::upKeyFullKeyboard = upKeyFullKeyboard;
 
     GameOptions::fullKeyboard = fullKeyboard;
+}
+
+void GameOptionsFile::save() {
+    std::ofstream propertiesFile(PathHelper::getPrimaryDataDirectory() + "/games/com.mojang/minecraftpe/options.txt");
+    properties.save(propertiesFile);
 }
