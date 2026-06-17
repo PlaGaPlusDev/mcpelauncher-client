@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fake-jni/fake-jni.h>
+#include <sys/statvfs.h>
 #include "java_types.h"
 #include "../text_input_handler.h"
 
@@ -265,10 +266,32 @@ public:
     void setCaretPosition(FakeJni::JInt pos);
 
     FakeJni::JLong calculateAvailableDiskFreeSpace(std::shared_ptr<FakeJni::JString> str) {
+        if (str) {
+            struct statvfs buf;
+            if (::statvfs(str->asStdString().c_str(), &buf) == 0) {
+                return (FakeJni::JLong)buf.f_bavail * (FakeJni::JLong)buf.f_frsize;
+            }
+        }
         return 1024LL * 1024LL * 1024LL * 1024LL;
     }
 
     FakeJni::JLong getUsableSpace(std::shared_ptr<FakeJni::JString> str) {
+        if (str) {
+            struct statvfs buf;
+            if (::statvfs(str->asStdString().c_str(), &buf) == 0) {
+                return (FakeJni::JLong)buf.f_bavail * (FakeJni::JLong)buf.f_frsize;
+            }
+        }
+        return 1024LL * 1024LL * 1024LL * 1024LL;
+    }
+
+    FakeJni::JLong getTotalSpace(std::shared_ptr<FakeJni::JString> str) {
+        if (str) {
+            struct statvfs buf;
+            if (::statvfs(str->asStdString().c_str(), &buf) == 0) {
+                return (FakeJni::JLong)buf.f_blocks * (FakeJni::JLong)buf.f_frsize;
+            }
+        }
         return 1024LL * 1024LL * 1024LL * 1024LL;
     }
 
