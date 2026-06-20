@@ -13,6 +13,8 @@
 
 std::string XalWebViewQt::findWebView() {
     std::string path;
+    if(EnvPathUtil::findInPath("mcpelauncher-webview", path, "", EnvPathUtil::getAppDir().c_str()))
+        return path;
 #ifdef MCPELAUNCHER_WEBVIEW_PATH
     if(EnvPathUtil::findInPath("mcpelauncher-webview", path, MCPELAUNCHER_WEBVIEW_PATH, EnvPathUtil::getAppDir().c_str()))
         return path;
