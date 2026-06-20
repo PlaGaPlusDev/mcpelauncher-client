@@ -619,7 +619,10 @@ Hardware	: Qualcomm Technologies, Inc MSM8998
 
     FakeLooper::setJniSupport(&support);
     support.registerMinecraftNatives(+[](const char* sym) {
-        return linker::dlsym(handle, sym);
+        void* ret = linker::dlsym(handle, sym);
+        if(!ret)
+            ret = dlsym(RTLD_DEFAULT, sym);
+        return ret;
     });
     std::thread startThread([&support]() {
         ThreadMover::storeStartThreadId();

@@ -15,10 +15,8 @@ std::string const XboxLiveHelper::MSA_COBRAND_ID = "90023";
 
 std::string XboxLiveHelper::findMsa() {
     std::string path;
-#ifdef MSA_DAEMON_PATH
-    if(EnvPathUtil::findInPath("msa-daemon", path, MSA_DAEMON_PATH, EnvPathUtil::getAppDir().c_str()))
+    if(EnvPathUtil::findInPath("msa-daemon", path, "", EnvPathUtil::getAppDir().c_str()))
         return path;
-#endif
     if(EnvPathUtil::findInPath("msa-daemon", path))
         return path;
     return std::string();
